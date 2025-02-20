@@ -40,6 +40,7 @@ public class TypoToleranceTests
     [InlineData("v1.12.6")]
     [InlineData("v1.12.7")]
     [InlineData("v1.12.8")]
+    [InlineData("v1.13.0")]
     [InlineData("nightly")]
     public async Task SearchOnTypoToleranceDisabledAttribute(string version)
     {
