@@ -2,6 +2,8 @@
 
 using Meilisearch;
 
+using System.ComponentModel;
+
 using Xunit;
 
 namespace TypoTolerence;
@@ -56,7 +58,7 @@ public class TypoToleranceTests
         var client = new MeilisearchClient($"http://localhost:{port}", "MASTER_KEY");
 
         var indexName = "MyIndex";
-        
+
         var createIndexTask = await client.CreateIndexAsync(indexName, cancellationToken: TestContext.Current.CancellationToken);
         await client.WaitForTaskAsync(createIndexTask.TaskUid, cancellationToken: TestContext.Current.CancellationToken);
         var index = client.Index(indexName);
@@ -65,13 +67,19 @@ public class TypoToleranceTests
         await index.UpdateSearchableAttributesAsync([nameof(MySearchableObject.myImportantAttribute)], TestContext.Current.CancellationToken);
 
         var addDocumentTask = await index.AddDocumentsAsync(
-            documents: [new MySearchableObject { myImportantAttribute = "myImportantValue" }], 
-            primaryKey: nameof(MySearchableObject.myImportantAttribute), 
+            documents: [new MySearchableObject { myImportantAttribute = "myImportantValue" }],
+            primaryKey: nameof(MySearchableObject.myImportantAttribute),
             cancellationToken: TestContext.Current.CancellationToken);
         await client.WaitForTaskAsync(addDocumentTask.TaskUid, cancellationToken: TestContext.Current.CancellationToken);
         var searchResults = await index.SearchAsync<MySearchableObject>("myImportantValue", cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Single(searchResults.Hits);
 
+        var dumpTask = await client.CreateDumpAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await client.WaitForTaskAsync(dumpTask.TaskUid, cancellationToken: TestContext.Current.CancellationToken);
+        await meiliSearchContainer.ExecAsync(["tar", "-czvf", "/tmp/dump.tar.gz", "/meili_data/dumps"], TestContext.Current.CancellationToken);
+        var bytes = await meiliSearchContainer.ReadFileAsync("/tmp/dump.tar.gz", TestContext.Current.CancellationToken);
+        File.WriteAllBytes($"dump-{version}.tar.gz", bytes);
+
+        Assert.Single(searchResults.Hits);
         Assert.Equal("myImportantValue", searchResults.Hits.Single().myImportantAttribute);
 
     }
